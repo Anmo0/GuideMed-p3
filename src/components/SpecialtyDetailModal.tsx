@@ -47,12 +47,25 @@ export const SpecialtyDetailModal: React.FC<SpecialtyDetailModalProps> = ({
         {/* Header */}
         <div className="p-5 sm:p-7 border-b border-slate-800 flex items-start justify-between gap-4 bg-gradient-to-r from-slate-900 to-[#0c1633]">
           <div>
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
               <span className="text-xs font-bold px-3 py-1 rounded-full bg-cyan-950/80 text-cyan-300 border border-cyan-800/60">
                 {specialty.category}
               </span>
+              <span className={`text-xs font-bold px-3 py-1 rounded-full border ${
+                specialty.trackType === 'residency'
+                  ? 'bg-blue-950/80 text-blue-300 border-blue-800/60'
+                  : specialty.trackType === 'fellowship'
+                  ? 'bg-purple-950/80 text-purple-300 border-purple-800/60'
+                  : 'bg-emerald-950/80 text-emerald-300 border-emerald-800/60'
+              }`}>
+                {specialty.trackType === 'residency'
+                  ? 'برنامج إقامة مباشرة'
+                  : specialty.trackType === 'fellowship'
+                  ? 'برنامج زمالة دقيقة'
+                  : 'مسار مشترك / مدمج'}
+              </span>
               <span className="text-xs font-semibold text-slate-400">
-                برنامج الإقامة: {specialty.duration}
+                المدة: {specialty.duration}
               </span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-black text-white">
@@ -115,6 +128,18 @@ export const SpecialtyDetailModal: React.FC<SpecialtyDetailModalProps> = ({
                 {specialty.lifestyle}
               </p>
 
+              {specialty.lifestyleShift && (
+                <div className="p-4 rounded-2xl bg-purple-950/40 border border-purple-800/60 space-y-1.5 shadow-sm">
+                  <div className="text-xs font-bold text-purple-300 flex items-center gap-1.5">
+                    <TrendingUp className="w-4 h-4 text-purple-400" />
+                    <span>تحول نمط الحياة والدخل بالتخصص الدقيق:</span>
+                  </div>
+                  <p className="text-xs text-purple-200 leading-relaxed font-medium">
+                    {specialty.lifestyleShift}
+                  </p>
+                </div>
+              )}
+
               <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2">
                 <div className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
                   <HeartHandshake className="w-4 h-4 text-cyan-400" />
@@ -171,8 +196,23 @@ export const SpecialtyDetailModal: React.FC<SpecialtyDetailModalProps> = ({
               </div>
             </div>
 
+            <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-1">
+              <div className="text-xs font-bold text-cyan-300 flex items-center gap-1.5">
+                <Brain className="w-4 h-4 text-cyan-400" />
+                <span>مسار التدريب والأهلية:</span>
+              </div>
+              <p className="text-xs text-white leading-relaxed font-medium">
+                {specialty.pathway}
+              </p>
+              {specialty.parentSpecialty && (
+                <div className="text-[11px] text-slate-400 pt-1">
+                  البورد الأساسي المؤهل: <span className="text-cyan-300 font-semibold">{specialty.parentSpecialty}</span>
+                </div>
+              )}
+            </div>
+
             <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800">
-              <div className="text-xs font-bold text-slate-300 mb-1">المسار التدريبي والاعتماد:</div>
+              <div className="text-xs font-bold text-slate-300 mb-1">تفاصيل البورد والاعتماد:</div>
               <p className="text-xs text-slate-400 leading-relaxed">
                 {specialty.boardDetails}
               </p>

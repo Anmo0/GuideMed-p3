@@ -34,6 +34,7 @@ export const GuideScreen: React.FC<GuideScreenProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedTrack, setSelectedTrack] = useState<'all' | 'residency' | 'fellowship' | 'integrated'>('all');
   const [sortBy, setSortBy] = useState<'default' | 'lifestyle' | 'income' | 'manual' | 'smle' | 'duration'>('default');
   const [onlyFavorites, setOnlyFavorites] = useState(filterFavoritesOnly);
 
@@ -52,11 +53,13 @@ export const GuideScreen: React.FC<GuideScreenProps> = ({
         spec.name.toLowerCase().includes(q) ||
         spec.englishName.toLowerCase().includes(q) ||
         spec.tags.some((t) => t.toLowerCase().includes(q)) ||
-        spec.boardDetails.toLowerCase().includes(q);
+        spec.boardDetails.toLowerCase().includes(q) ||
+        (spec.pathway && spec.pathway.toLowerCase().includes(q));
 
       const matchesCat = selectedCategory === 'all' || spec.category === selectedCategory;
+      const matchesTrack = selectedTrack === 'all' || spec.trackType === selectedTrack;
 
-      return matchesSearch && matchesCat;
+      return matchesSearch && matchesCat && matchesTrack;
     });
 
     // Sorting
@@ -78,7 +81,7 @@ export const GuideScreen: React.FC<GuideScreenProps> = ({
     });
 
     return result;
-  }, [specialties, searchQuery, selectedCategory, sortBy, onlyFavorites, isFavorite]);
+  }, [specialties, searchQuery, selectedCategory, selectedTrack, sortBy, onlyFavorites, isFavorite]);
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6" dir="rtl">
@@ -147,17 +150,61 @@ export const GuideScreen: React.FC<GuideScreenProps> = ({
           </div>
         </div>
 
+        {/* Track Type Filters */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin border-b border-slate-800/80 pb-2">
+          <button
+            onClick={() => setSelectedTrack('all')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-colors cursor-pointer ${
+              selectedTrack === 'all'
+                ? 'bg-cyan-500 text-slate-950 font-black'
+                : 'bg-slate-950 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+            }`}
+          >
+            كافة المسارات ({specialties.length})
+          </button>
+          <button
+            onClick={() => setSelectedTrack('residency')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-colors cursor-pointer ${
+              selectedTrack === 'residency'
+                ? 'bg-blue-600 text-white font-black'
+                : 'bg-slate-950 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+            }`}
+          >
+            برامج الإقامة المباشرة
+          </button>
+          <button
+            onClick={() => setSelectedTrack('fellowship')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-colors cursor-pointer ${
+              selectedTrack === 'fellowship'
+                ? 'bg-purple-600 text-white font-black'
+                : 'bg-slate-950 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+            }`}
+          >
+            برامج الزمالة والتخصصات الدقيقة
+          </button>
+          <button
+            onClick={() => setSelectedTrack('integrated')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-colors cursor-pointer ${
+              selectedTrack === 'integrated'
+                ? 'bg-emerald-600 text-white font-black'
+                : 'bg-slate-950 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+            }`}
+          >
+            المسارات المشتركة والمدمجة
+          </button>
+        </div>
+
         {/* Category Pills */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
           <button
             onClick={() => setSelectedCategory('all')}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
               selectedCategory === 'all'
-                ? 'bg-cyan-500 text-slate-950 font-bold'
+                ? 'bg-slate-200 text-slate-950 font-bold'
                 : 'bg-slate-950 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
             }`}
           >
-            جميع التصنيفات ({specialties.length})
+            كافة التصنيفات الطبية
           </button>
           {categories.map((cat) => (
             <button
@@ -165,7 +212,7 @@ export const GuideScreen: React.FC<GuideScreenProps> = ({
               onClick={() => setSelectedCategory(cat)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
                 selectedCategory === cat
-                  ? 'bg-cyan-500 text-slate-950 font-bold'
+                  ? 'bg-slate-200 text-slate-950 font-bold'
                   : 'bg-slate-950 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
               }`}
             >
@@ -192,11 +239,22 @@ export const GuideScreen: React.FC<GuideScreenProps> = ({
               className="p-5 rounded-2xl bg-slate-900/70 border border-slate-800 hover:border-cyan-500/40 hover:bg-slate-900/90 hover:shadow-xl hover:shadow-cyan-950/20 transition-all flex flex-col justify-between group shadow-lg"
             >
               <div>
-                {/* Category & Tag */}
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-slate-800 text-cyan-300">
-                    {spec.category}
-                  </span>
+                {/* Category & Tag & Track Badge */}
+                <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-slate-800 text-cyan-300">
+                      {spec.category}
+                    </span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                      spec.trackType === 'residency'
+                        ? 'bg-blue-950/80 text-blue-300 border-blue-800/60'
+                        : spec.trackType === 'fellowship'
+                        ? 'bg-purple-950/80 text-purple-300 border-purple-800/60'
+                        : 'bg-emerald-950/80 text-emerald-300 border-emerald-800/60'
+                    }`}>
+                      {spec.trackType === 'residency' ? 'إقامة مباشرة' : spec.trackType === 'fellowship' ? 'زمالة دقيقة' : 'مسار مشترك'}
+                    </span>
+                  </div>
                   <span className="text-[11px] text-slate-400 font-semibold">
                     {spec.duration}
                   </span>
@@ -206,7 +264,13 @@ export const GuideScreen: React.FC<GuideScreenProps> = ({
                 <h3 className="text-lg font-bold text-white group-hover:text-cyan-300 transition-colors">
                   {spec.name}
                 </h3>
-                <p className="text-xs font-mono text-slate-400 mb-3">{spec.englishName}</p>
+                <p className="text-xs font-mono text-slate-400 mb-2">{spec.englishName}</p>
+
+                {/* Pathway Info */}
+                <div className="text-[11px] text-cyan-300/90 bg-slate-950/80 border border-slate-800/80 rounded-lg px-2.5 py-1 mb-2.5 line-clamp-1">
+                  <span className="font-semibold text-slate-400 ml-1">المسار:</span>
+                  <span>{spec.pathway}</span>
+                </div>
 
                 {/* Metrics Mini-Grid */}
                 <div className="grid grid-cols-3 gap-1.5 text-center text-[10px] font-semibold mb-3">

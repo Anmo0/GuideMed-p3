@@ -38,6 +38,8 @@ export interface BirkmanScores {
   advantage: number;   // Competitive & financial drive
 }
 
+export type TrackType = 'residency' | 'fellowship' | 'integrated';
+
 export interface Specialty {
   id: string;
   category: SpecialtyCategory;
@@ -62,6 +64,10 @@ export interface Specialty {
   tags: string[];
   pros: string[];
   cons: string[];
+  trackType: TrackType;
+  pathway: string;
+  parentSpecialty?: string;
+  lifestyleShift?: string;
 }
 
 export type LearningStyleType = 'visual' | 'auditory' | 'kinesthetic';

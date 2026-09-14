@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { UserEvaluation, Specialty, SpecialtyCategory } from '../types';
+import { UserEvaluation, Specialty, SpecialtyCategory, TrackType } from '../types';
 import { RadarChart } from './RadarChart';
 import { DiscPersonalityCard } from './DiscPersonalityCard';
 import { MedicalLearningStyleCard } from './MedicalLearningStyleCard';
@@ -29,7 +29,12 @@ import {
   Cpu,
   Compass,
   Lightbulb,
-  Building2
+  Building2,
+  Clock,
+  GitFork,
+  Layers,
+  Star,
+  BadgeCheck
 } from 'lucide-react';
 
 interface ResultsScreenProps {
@@ -55,29 +60,52 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedTrackFilter, setSelectedTrackFilter] = useState<'all' | 'residency' | 'fellowship' | 'integrated'>('all');
+  const [activeSectionView, setActiveSectionView] = useState<'all' | 'residency' | 'fellowship' | 'integrated'>('all');
   const [copiedShare, setCopiedShare] = useState(false);
 
-  const topMatch = evaluation.results[0];
-  const secondMatch = evaluation.results[1];
-  const thirdMatch = evaluation.results[2];
+  // Categorize results into three distinct tracks
+  const residencyResults = useMemo(
+    () => evaluation.results.filter((r) => r.specialty.trackType === 'residency'),
+    [evaluation.results]
+  );
+  const fellowshipResults = useMemo(
+    () => evaluation.results.filter((r) => r.specialty.trackType === 'fellowship'),
+    [evaluation.results]
+  );
+  const integratedResults = useMemo(
+    () => evaluation.results.filter((r) => r.specialty.trackType === 'integrated'),
+    [evaluation.results]
+  );
+
+  const topResidency = residencyResults[0];
+  const topFellowship = fellowshipResults[0];
+  const topIntegrated = integratedResults[0];
+
+  // Overall top match for sharing
+  const overallTopMatch = evaluation.results[0];
 
   // Filter remaining specialties list
   const filteredResults = evaluation.results.filter((res) => {
     const matchesSearch =
       res.specialty.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       res.specialty.englishName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      res.specialty.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()));
+      res.specialty.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (res.specialty.pathway && res.specialty.pathway.toLowerCase().includes(searchQuery.toLowerCase()));
 
     const matchesCategory =
       selectedCategory === 'all' || res.specialty.category === selectedCategory;
 
-    return matchesSearch && matchesCategory;
+    const matchesTrack =
+      selectedTrackFilter === 'all' || res.specialty.trackType === selectedTrackFilter;
+
+    return matchesSearch && matchesCategory && matchesTrack;
   });
 
   const categories = Array.from(new Set(evaluation.results.map((r) => r.specialty.category)));
 
   const handleShare = () => {
-    const text = `نتيجتي في منصة Guide Med: التخصص الأعلى توافقاً معي هو ${topMatch.specialty.name} بنسبة ${topMatch.matchPercentage}% وفق نمط شخصيتي (${evaluation.discProfileTitle}).`;
+    const text = `نتيجتي في منصة Guide Med: التخصص الأعلى توافقاً معي هو ${overallTopMatch.specialty.name} بنسبة ${overallTopMatch.matchPercentage}% وفق نمط شخصيتي (${evaluation.discProfileTitle}).`;
     if (navigator.clipboard) {
       navigator.clipboard.writeText(text);
       setCopiedShare(true);
@@ -439,222 +467,758 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({
         </div>
       )}
 
-      {/* Podium: Top 3 Specialties */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2.5">
-            <Trophy className="w-6 h-6 text-amber-400" />
-            <span>التخصصات الطبية الأكثر توافقاً مع شخصيتك</span>
-          </h2>
-          <span className="text-xs text-slate-400 hidden sm:inline">
-            بناءً على التقييم المتكامل لـ 7 محاور مهنية
-          </span>
+      {/* Top Matches Categorized by Track Sections */}
+      <div className="space-y-10">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+          <div>
+            <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2.5">
+              <Trophy className="w-6 h-6 text-amber-400" />
+              <span>أعلى التخصصات والمسارات توافقاً حسب الأقسام السريرية</span>
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-300 mt-1">
+              تم تصنيف النتائج إلى 3 أقسام رئيسية: برامج الإقامة المباشرة، برامج الزمالات الدقيقة، والمسارات المشتركة والمدمجة مع توضيح المسار والمدة ونمط الحياة.
+            </p>
+          </div>
+
+          {/* Tab Filter for Sections */}
+          <div className="flex items-center gap-1.5 p-1 bg-slate-900/90 border border-slate-800 rounded-2xl shrink-0 overflow-x-auto">
+            <button
+              onClick={() => setActiveSectionView('all')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors whitespace-nowrap cursor-pointer ${
+                activeSectionView === 'all'
+                  ? 'bg-cyan-500 text-slate-950 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              كافة الأقسام معاً
+            </button>
+            <button
+              onClick={() => setActiveSectionView('residency')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors whitespace-nowrap cursor-pointer ${
+                activeSectionView === 'residency'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              الإقامات الرئيسية ({residencyResults.length})
+            </button>
+            <button
+              onClick={() => setActiveSectionView('fellowship')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors whitespace-nowrap cursor-pointer ${
+                activeSectionView === 'fellowship'
+                  ? 'bg-purple-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              الزمالات الدقيقة ({fellowshipResults.length})
+            </button>
+            <button
+              onClick={() => setActiveSectionView('integrated')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors whitespace-nowrap cursor-pointer ${
+                activeSectionView === 'integrated'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              المسارات المشتركة ({integratedResults.length})
+            </button>
+          </div>
         </div>
 
-        {/* Top 1 Hero Card with Motion Hover */}
-        {topMatch && (
-          <motion.div
-            id="hero-top-match-card"
-            whileHover={{ y: -4, transition: { duration: 0.25 } }}
-            className="p-5 sm:p-8 rounded-3xl bg-gradient-to-br from-cyan-950/50 via-slate-900 to-slate-950 border-2 border-cyan-500/60 hover:border-cyan-400 shadow-2xl hover:shadow-cyan-500/10 transition-colors relative overflow-hidden group"
-          >
-            <div className="absolute -top-10 -right-10 w-48 h-48 bg-cyan-500/20 rounded-full blur-2xl group-hover:bg-cyan-500/30 transition-all pointer-events-none" />
-
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-center relative z-10">
-              {/* Left Info Column */}
-              <div className="lg:col-span-7 space-y-4">
-                <div className="flex flex-wrap items-center gap-2.5">
-                  <span className="px-3.5 py-1 rounded-full bg-cyan-500 text-slate-950 text-xs font-black flex items-center gap-1.5 shadow-md">
-                    <Trophy className="w-3.5 h-3.5" />
-                    <span>الخيار الأول الموصى به</span>
-                  </span>
-                  <span className="text-xs font-bold text-slate-400">{topMatch.specialty.category}</span>
-                </div>
-
+        {/* ═══════════════════════════════════════════════════════════════ */}
+        {/* SECTION 1: برامج الإقامة المباشرة (Residency Tracks)           */}
+        {/* ═══════════════════════════════════════════════════════════════ */}
+        {(activeSectionView === 'all' || activeSectionView === 'residency') && topResidency && (
+          <div className="space-y-5 rounded-3xl p-5 sm:p-7 bg-gradient-to-b from-blue-950/30 to-slate-900/60 border border-blue-900/50 shadow-xl">
+            {/* Section Header Banner */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-blue-900/40 pb-3">
+              <div className="flex items-center gap-2.5">
+                <span className="p-2 rounded-xl bg-blue-600/20 text-blue-400 border border-blue-500/30">
+                  <GraduationCap className="w-5 h-5" />
+                </span>
                 <div>
-                  <h3 className="text-2xl sm:text-4xl font-black text-white mb-1">
-                    {topMatch.specialty.name}
+                  <h3 className="text-lg sm:text-xl font-black text-white flex items-center gap-2">
+                    <span>قسم التخصصات الرئيسية (برامج الإقامة المباشرة)</span>
+                    <span className="px-2.5 py-0.5 rounded-md bg-blue-500/20 text-blue-300 text-xs font-bold border border-blue-500/30">
+                      Direct Residency
+                    </span>
                   </h3>
-                  <p className="text-xs sm:text-sm font-semibold text-cyan-400 font-mono">
-                    {topMatch.specialty.englishName}
+                  <p className="text-xs text-slate-300">
+                    البرامج التأسيسية المباشرة التي يلتحق بها الطبيب فور إتمام سنة الامتياز واجتياز اختبار SMLE.
                   </p>
                 </div>
-
-                {/* Quick specs row */}
-                <div className="flex flex-wrap gap-2 text-xs font-semibold pt-1">
-                  <span className="px-2.5 py-1 rounded-lg bg-slate-800/80 text-slate-300 border border-slate-700">
-                    مدة البرنامج: {topMatch.specialty.duration}
-                  </span>
-                  <span className="px-2.5 py-1 rounded-lg bg-slate-800/80 text-slate-300 border border-slate-700">
-                    تنافسية القبول: {topMatch.specialty.competition}
-                  </span>
-                  <span className="px-2.5 py-1 rounded-lg bg-slate-800/80 text-cyan-300 border border-slate-700">
-                    درجة SMLE المتوقعة: {topMatch.specialty.smleRange}
-                  </span>
-                </div>
-
-                {/* Why it matches */}
-                <div className="space-y-2 pt-2">
-                  <div className="text-xs font-bold text-slate-300">أبرز ركائز التوافق معك:</div>
-                  <ul className="space-y-1.5">
-                    {topMatch.strengths.slice(0, 3).map((str, idx) => (
-                      <li key={idx} className="text-xs sm:text-sm text-slate-300 flex items-start gap-2">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                        <span>{str}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex flex-wrap items-center gap-2.5 pt-3">
-                  <motion.button
-                    id="btn-top-match-detail"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => onOpenSpecialtyDetail(topMatch.specialty)}
-                    className="flex-1 sm:flex-initial px-4 sm:px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-cyan-950/50 min-h-[44px]"
-                  >
-                    <Eye className="w-4 h-4" />
-                    <span>تفاصيل التخصص والبورد الكاملة</span>
-                  </motion.button>
-
-                  <motion.button
-                    id="btn-top-match-compare"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => onToggleCompare(topMatch.specialty)}
-                    className={`px-3.5 sm:px-4 py-2.5 rounded-xl border text-xs sm:text-sm font-semibold transition-colors flex items-center justify-center gap-2 cursor-pointer min-h-[44px] ${
-                      isCompared(topMatch.specialty.id)
-                        ? 'bg-indigo-950 border-indigo-500 text-indigo-200'
-                        : 'bg-slate-800/80 hover:bg-slate-700 border-slate-700 text-slate-200'
-                    }`}
-                  >
-                    <GitCompare className="w-4 h-4" />
-                    <span>{isCompared(topMatch.specialty.id) ? 'تمت الإضافة للمقارنة' : 'مقارنة'}</span>
-                  </motion.button>
-
-                  <motion.button
-                    id="btn-top-match-fav"
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => onToggleFavorite(topMatch.specialty.id)}
-                    className={`p-2.5 rounded-xl border transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center ${
-                      isFavorite(topMatch.specialty.id)
-                        ? 'bg-amber-950/80 border-amber-500 text-amber-300'
-                        : 'bg-slate-800/80 hover:bg-slate-700 border-slate-700 text-slate-400'
-                    }`}
-                    title="حفظ في المفضلة"
-                  >
-                    <Bookmark className="w-4 h-4" />
-                  </motion.button>
-                </div>
               </div>
-
-              {/* Right Radar Column */}
-              <div className="lg:col-span-5 flex flex-col items-center justify-center p-3 sm:p-4 rounded-2xl bg-slate-950/60 border border-slate-800 w-full">
-                <div className="text-center mb-1">
-                  <span className="text-3xl sm:text-5xl font-black text-cyan-400">
-                    {topMatch.matchPercentage}%
-                  </span>
-                  <div className="text-[11px] sm:text-xs font-bold text-slate-400">نسبة التطابق الإجمالي</div>
-                </div>
-
-                <RadarChart
-                  metrics={topMatch.specialty.metrics}
-                  comparisonMetrics={evaluation.userMetrics}
-                  label={topMatch.specialty.name}
-                  comparisonLabel="ملفك الشخصي"
-                  size={260}
-                />
-              </div>
+              <span className="text-xs font-bold text-blue-300 bg-blue-950/80 px-3 py-1 rounded-lg border border-blue-800/60 w-fit">
+                {residencyResults.length} تخصصاً متاحاً
+              </span>
             </div>
-          </motion.div>
-        )}
 
-        {/* 2nd and 3rd Runner-Ups Cards with Motion Hover */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-          {[secondMatch, thirdMatch].filter(Boolean).map((res, index) => (
+            {/* Top 1 Residency Match Hero Card */}
             <motion.div
-              key={res.specialty.id}
-              whileHover={{ y: -5, scale: 1.01, transition: { duration: 0.2 } }}
-              className="p-5 sm:p-6 rounded-3xl bg-slate-900/80 border border-slate-800 hover:border-cyan-500/40 hover:shadow-xl hover:shadow-slate-950/50 transition-all flex flex-col justify-between group"
+              id="hero-top-residency-card"
+              whileHover={{ y: -3, transition: { duration: 0.2 } }}
+              className="p-5 sm:p-7 rounded-2xl bg-gradient-to-br from-blue-950/60 via-slate-900 to-slate-950 border-2 border-blue-500/60 hover:border-blue-400 shadow-2xl relative overflow-hidden group"
             >
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <span className="px-3 py-0.5 rounded-full bg-slate-800 text-slate-300 text-xs font-bold">
-                    المركز {index === 0 ? 'الثاني' : 'الثالث'}
-                  </span>
-                  <span className="text-2xl font-black text-sky-400 group-hover:text-cyan-300 transition-colors">
-                    {res.matchPercentage}%
-                  </span>
-                </div>
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+                <div className="lg:col-span-7 space-y-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="px-3.5 py-1 rounded-full bg-blue-500 text-slate-950 text-xs font-black flex items-center gap-1.5 shadow-md">
+                      <Trophy className="w-3.5 h-3.5" />
+                      <span>المركز الأول • أعلى توافق في الإقامة المباشرة</span>
+                    </span>
+                    <span className="text-xs font-bold text-slate-300 px-2.5 py-0.5 rounded-md bg-slate-800 border border-slate-700">
+                      {topResidency.specialty.category}
+                    </span>
+                  </div>
 
-                <h4 className="text-lg sm:text-xl font-bold text-white group-hover:text-cyan-200 transition-colors">
-                  {res.specialty.name}
-                </h4>
-                <p className="text-xs font-mono text-slate-400 mb-3">{res.specialty.englishName}</p>
+                  <div>
+                    <h4 className="text-2xl sm:text-3xl font-black text-white mb-1">
+                      {topResidency.specialty.name}
+                    </h4>
+                    <p className="text-xs sm:text-sm font-semibold text-blue-300 font-mono">
+                      {topResidency.specialty.englishName}
+                    </p>
+                  </div>
 
-                <p className="text-xs text-slate-300 line-clamp-2 leading-relaxed mb-4">
-                  {res.specialty.lifestyle}
-                </p>
-
-                <div className="space-y-1.5 mb-4">
-                  {res.strengths.slice(0, 2).map((str, sIdx) => (
-                    <div key={sIdx} className="text-xs text-slate-400 flex items-start gap-1.5">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                      <span>{str}</span>
+                  {/* Pathway and Duration Highlights */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                    <div className="p-3 rounded-xl bg-blue-950/70 border border-blue-800/60 flex items-start gap-2.5">
+                      <GitFork className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="text-[11px] font-bold text-blue-300">مسار التدريب والاعتماد</div>
+                        <div className="text-xs text-white font-medium">{topResidency.specialty.pathway}</div>
+                      </div>
                     </div>
-                  ))}
+
+                    <div className="p-3 rounded-xl bg-blue-950/70 border border-blue-800/60 flex items-start gap-2.5">
+                      <Clock className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="text-[11px] font-bold text-blue-300">مدة البرنامج والتنافسية</div>
+                        <div className="text-xs text-white font-medium">
+                          {topResidency.specialty.duration} • تنافسية {topResidency.specialty.competition} (SMLE: {topResidency.specialty.smleRange})
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Lifestyle snippet */}
+                  <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 text-xs text-slate-300 leading-relaxed">
+                    <span className="font-bold text-slate-200 block mb-1">نمط الحياة وساعات العمل:</span>
+                    {topResidency.specialty.lifestyle}
+                  </div>
+
+                  {/* Why it matches */}
+                  <div className="space-y-1.5 pt-1">
+                    <div className="text-xs font-bold text-slate-300">أبرز ركائز التوافق مع شخصيتك:</div>
+                    <ul className="space-y-1">
+                      {topResidency.strengths.slice(0, 3).map((str, idx) => (
+                        <li key={idx} className="text-xs text-slate-300 flex items-start gap-2">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                          <span>{str}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex flex-wrap items-center gap-2.5 pt-2">
+                    <motion.button
+                      id={`btn-top-residency-detail-${topResidency.specialty.id}`}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => onOpenSpecialtyDetail(topResidency.specialty)}
+                      className="px-4 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-400 text-slate-950 font-bold text-xs sm:text-sm transition-colors flex items-center gap-2 cursor-pointer shadow-md"
+                    >
+                      <Eye className="w-4 h-4" />
+                      <span>تفاصيل التخصص والمسار</span>
+                    </motion.button>
+
+                    <motion.button
+                      id={`btn-top-residency-compare-${topResidency.specialty.id}`}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => onToggleCompare(topResidency.specialty)}
+                      className={`px-3.5 py-2.5 rounded-xl border text-xs sm:text-sm font-semibold transition-colors flex items-center gap-2 cursor-pointer ${
+                        isCompared(topResidency.specialty.id)
+                          ? 'bg-indigo-950 border-indigo-500 text-indigo-200'
+                          : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200'
+                      }`}
+                    >
+                      <GitCompare className="w-4 h-4" />
+                      <span>{isCompared(topResidency.specialty.id) ? 'تمت المقارنة' : 'مقارنة'}</span>
+                    </motion.button>
+
+                    <motion.button
+                      id={`btn-top-residency-fav-${topResidency.specialty.id}`}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => onToggleFavorite(topResidency.specialty.id)}
+                      className={`p-2.5 rounded-xl border transition-colors cursor-pointer ${
+                        isFavorite(topResidency.specialty.id)
+                          ? 'bg-amber-950 border-amber-500 text-amber-300'
+                          : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-400'
+                      }`}
+                      title="حفظ بالمفضلة"
+                    >
+                      <Bookmark className="w-4 h-4" />
+                    </motion.button>
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex items-center justify-between pt-4 border-t border-slate-800/80 gap-2">
-                <motion.button
-                  id={`btn-runnerup-detail-${res.specialty.id}`}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => onOpenSpecialtyDetail(res.specialty)}
-                  className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-colors cursor-pointer min-h-[38px]"
-                >
-                  التفاصيل الكاملة
-                </motion.button>
-
-                <div className="flex items-center gap-2">
-                  <motion.button
-                    id={`btn-runnerup-compare-${res.specialty.id}`}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => onToggleCompare(res.specialty)}
-                    className={`p-2 rounded-lg border text-xs cursor-pointer min-h-[38px] min-w-[38px] flex items-center justify-center ${
-                      isCompared(res.specialty.id)
-                        ? 'bg-indigo-950 border-indigo-600 text-indigo-300'
-                        : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
-                    }`}
-                    title="مقارنة"
-                  >
-                    <GitCompare className="w-3.5 h-3.5" />
-                  </motion.button>
-
-                  <motion.button
-                    id={`btn-runnerup-fav-${res.specialty.id}`}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => onToggleFavorite(res.specialty.id)}
-                    className={`p-2 rounded-lg border text-xs cursor-pointer min-h-[38px] min-w-[38px] flex items-center justify-center ${
-                      isFavorite(res.specialty.id)
-                        ? 'bg-amber-950 border-amber-600 text-amber-300'
-                        : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
-                    }`}
-                    title="حفظ"
-                  >
-                    <Bookmark className="w-3.5 h-3.5" />
-                  </motion.button>
+                {/* Radar chart column */}
+                <div className="lg:col-span-5 flex flex-col items-center justify-center p-4 rounded-2xl bg-slate-950/70 border border-slate-800">
+                  <div className="text-center mb-1">
+                    <span className="text-3xl sm:text-4xl font-black text-blue-400">
+                      {topResidency.matchPercentage}%
+                    </span>
+                    <div className="text-[11px] font-bold text-slate-400">نسبة التوافق مع برنامج الإقامة</div>
+                  </div>
+                  <RadarChart
+                    metrics={topResidency.specialty.metrics}
+                    comparisonMetrics={evaluation.userMetrics}
+                    label={topResidency.specialty.name}
+                    comparisonLabel="ملفك الشخصي"
+                    size={230}
+                  />
                 </div>
               </div>
             </motion.div>
-          ))}
-        </div>
+
+            {/* Runner ups in residency */}
+            {residencyResults.slice(1, 3).length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1">
+                {residencyResults.slice(1, 3).map((res, idx) => (
+                  <div
+                    key={res.specialty.id}
+                    className="p-4 sm:p-5 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-blue-500/40 transition-all flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="px-2.5 py-0.5 rounded-md bg-blue-950 text-blue-300 text-xs font-bold border border-blue-800/50">
+                          المركز {idx === 0 ? 'الثاني' : 'الثالث'} في الإقامة
+                        </span>
+                        <span className="text-xl font-black text-blue-400">{res.matchPercentage}%</span>
+                      </div>
+                      <h5 className="text-base sm:text-lg font-bold text-white mb-0.5">{res.specialty.name}</h5>
+                      <p className="text-xs text-slate-400 font-mono mb-2">{res.specialty.englishName}</p>
+                      <div className="flex items-center gap-2 text-xs text-blue-300 font-medium mb-2.5">
+                        <Clock className="w-3.5 h-3.5 shrink-0" />
+                        <span>المدة: {res.specialty.duration}</span>
+                        <span>•</span>
+                        <span>{res.specialty.category}</span>
+                      </div>
+                      <p className="text-xs text-slate-300 line-clamp-2 leading-relaxed mb-3">
+                        {res.specialty.pathway}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-3 border-t border-slate-800 gap-2">
+                      <button
+                        onClick={() => onOpenSpecialtyDetail(res.specialty)}
+                        className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold cursor-pointer transition-colors"
+                      >
+                        التفاصيل الكاملة
+                      </button>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => onToggleCompare(res.specialty)}
+                          className={`p-1.5 rounded-lg border text-xs cursor-pointer ${
+                            isCompared(res.specialty.id)
+                              ? 'bg-indigo-950 border-indigo-600 text-indigo-300'
+                              : 'bg-slate-800 border-slate-700 text-slate-400'
+                          }`}
+                          title="مقارنة"
+                        >
+                          <GitCompare className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => onToggleFavorite(res.specialty.id)}
+                          className={`p-1.5 rounded-lg border text-xs cursor-pointer ${
+                            isFavorite(res.specialty.id)
+                              ? 'bg-amber-950 border-amber-600 text-amber-300'
+                              : 'bg-slate-800 border-slate-700 text-slate-400'
+                          }`}
+                          title="حفظ"
+                        >
+                          <Bookmark className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════════════ */}
+        {/* SECTION 2: برامج الزمالة والتخصصات الدقيقة (Fellowships)       */}
+        {/* ═══════════════════════════════════════════════════════════════ */}
+        {(activeSectionView === 'all' || activeSectionView === 'fellowship') && topFellowship && (
+          <div className="space-y-5 rounded-3xl p-5 sm:p-7 bg-gradient-to-b from-purple-950/30 to-slate-900/60 border border-purple-900/50 shadow-xl">
+            {/* Section Header Banner */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-purple-900/40 pb-3">
+              <div className="flex items-center gap-2.5">
+                <span className="p-2 rounded-xl bg-purple-600/20 text-purple-400 border border-purple-500/30">
+                  <Star className="w-5 h-5" />
+                </span>
+                <div>
+                  <h3 className="text-lg sm:text-xl font-black text-white flex items-center gap-2">
+                    <span>قسم برامج الزمالة والتخصصات الدقيقة</span>
+                    <span className="px-2.5 py-0.5 rounded-md bg-purple-500/20 text-purple-300 text-xs font-bold border border-purple-500/30">
+                      Fellowships & Subspecialties
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-300">
+                    برامج التدريب السريري التخصصي المتقدم بعد إتمام البورد العام، وتحقيق النقلة النوعية في نمط الحياة والدخل وطبيعة العمل.
+                  </p>
+                </div>
+              </div>
+              <span className="text-xs font-bold text-purple-300 bg-purple-950/80 px-3 py-1 rounded-lg border border-purple-800/60 w-fit">
+                {fellowshipResults.length} برنامج زمالة دقيق
+              </span>
+            </div>
+
+            {/* Top 1 Fellowship Match Hero Card */}
+            <motion.div
+              id="hero-top-fellowship-card"
+              whileHover={{ y: -3, transition: { duration: 0.2 } }}
+              className="p-5 sm:p-7 rounded-2xl bg-gradient-to-br from-purple-950/60 via-slate-900 to-slate-950 border-2 border-purple-500/60 hover:border-purple-400 shadow-2xl relative overflow-hidden group"
+            >
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+                <div className="lg:col-span-7 space-y-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="px-3.5 py-1 rounded-full bg-purple-500 text-slate-950 text-xs font-black flex items-center gap-1.5 shadow-md">
+                      <Star className="w-3.5 h-3.5" />
+                      <span>المركز الأول • أعلى توافق في برامج الزمالة</span>
+                    </span>
+                    <span className="text-xs font-bold text-purple-300 px-2.5 py-0.5 rounded-md bg-purple-950/90 border border-purple-800/50">
+                      {topFellowship.specialty.category}
+                    </span>
+                  </div>
+
+                  <div>
+                    <h4 className="text-2xl sm:text-3xl font-black text-white mb-1">
+                      {topFellowship.specialty.name}
+                    </h4>
+                    <p className="text-xs sm:text-sm font-semibold text-purple-300 font-mono">
+                      {topFellowship.specialty.englishName}
+                    </p>
+                  </div>
+
+                  {/* Pathway & Duration */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                    <div className="p-3 rounded-xl bg-purple-950/70 border border-purple-800/60 flex items-start gap-2.5">
+                      <GitFork className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="text-[11px] font-bold text-purple-300">مسار الزمالة والمتطلب السابق</div>
+                        <div className="text-xs text-white font-medium">{topFellowship.specialty.pathway}</div>
+                        {topFellowship.specialty.parentSpecialty && (
+                          <div className="text-[10px] text-purple-300 mt-0.5">البورد المؤهل: {topFellowship.specialty.parentSpecialty}</div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-purple-950/70 border border-purple-800/60 flex items-start gap-2.5">
+                      <Clock className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="text-[11px] font-bold text-purple-300">مدة الزمالة والتنافسية</div>
+                        <div className="text-xs text-white font-medium">
+                          {topFellowship.specialty.duration} • تنافسية {topFellowship.specialty.competition}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Radical Lifestyle Shift Box */}
+                  {topFellowship.specialty.lifestyleShift && (
+                    <div className="p-3.5 rounded-xl bg-purple-900/30 border border-purple-600/40 text-xs text-purple-200 flex items-start gap-2.5 shadow-sm">
+                      <TrendingUp className="w-4 h-4 text-purple-300 shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-bold text-white block mb-0.5">التحول الجذري في نمط الحياة والدخل (Lifestyle Shift):</span>
+                        <span>{topFellowship.specialty.lifestyleShift}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Lifestyle detail */}
+                  <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 text-xs text-slate-300 leading-relaxed">
+                    <span className="font-bold text-slate-200 block mb-1">طبيعة نمط الحياة والدوام اليومي:</span>
+                    {topFellowship.specialty.lifestyle}
+                  </div>
+
+                  {/* Why it matches */}
+                  <div className="space-y-1.5 pt-1">
+                    <div className="text-xs font-bold text-slate-300">أبرز ركائز التوافق مع شخصيتك:</div>
+                    <ul className="space-y-1">
+                      {topFellowship.strengths.slice(0, 3).map((str, idx) => (
+                        <li key={idx} className="text-xs text-slate-300 flex items-start gap-2">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                          <span>{str}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex flex-wrap items-center gap-2.5 pt-2">
+                    <motion.button
+                      id={`btn-top-fellowship-detail-${topFellowship.specialty.id}`}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => onOpenSpecialtyDetail(topFellowship.specialty)}
+                      className="px-4 py-2.5 rounded-xl bg-purple-500 hover:bg-purple-400 text-slate-950 font-bold text-xs sm:text-sm transition-colors flex items-center gap-2 cursor-pointer shadow-md"
+                    >
+                      <Eye className="w-4 h-4" />
+                      <span>تفاصيل الزمالة والتخصص الدقيق</span>
+                    </motion.button>
+
+                    <motion.button
+                      id={`btn-top-fellowship-compare-${topFellowship.specialty.id}`}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => onToggleCompare(topFellowship.specialty)}
+                      className={`px-3.5 py-2.5 rounded-xl border text-xs sm:text-sm font-semibold transition-colors flex items-center gap-2 cursor-pointer ${
+                        isCompared(topFellowship.specialty.id)
+                          ? 'bg-indigo-950 border-indigo-500 text-indigo-200'
+                          : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200'
+                      }`}
+                    >
+                      <GitCompare className="w-4 h-4" />
+                      <span>{isCompared(topFellowship.specialty.id) ? 'تمت المقارنة' : 'مقارنة'}</span>
+                    </motion.button>
+
+                    <motion.button
+                      id={`btn-top-fellowship-fav-${topFellowship.specialty.id}`}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => onToggleFavorite(topFellowship.specialty.id)}
+                      className={`p-2.5 rounded-xl border transition-colors cursor-pointer ${
+                        isFavorite(topFellowship.specialty.id)
+                          ? 'bg-amber-950 border-amber-500 text-amber-300'
+                          : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-400'
+                      }`}
+                      title="حفظ بالمفضلة"
+                    >
+                      <Bookmark className="w-4 h-4" />
+                    </motion.button>
+                  </div>
+                </div>
+
+                {/* Radar chart column */}
+                <div className="lg:col-span-5 flex flex-col items-center justify-center p-4 rounded-2xl bg-slate-950/70 border border-slate-800">
+                  <div className="text-center mb-1">
+                    <span className="text-3xl sm:text-4xl font-black text-purple-400">
+                      {topFellowship.matchPercentage}%
+                    </span>
+                    <div className="text-[11px] font-bold text-slate-400">نسبة التوافق مع برنامج الزمالة</div>
+                  </div>
+                  <RadarChart
+                    metrics={topFellowship.specialty.metrics}
+                    comparisonMetrics={evaluation.userMetrics}
+                    label={topFellowship.specialty.name}
+                    comparisonLabel="ملفك الشخصي"
+                    size={230}
+                  />
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Runner ups in fellowship */}
+            {fellowshipResults.slice(1, 3).length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1">
+                {fellowshipResults.slice(1, 3).map((res, idx) => (
+                  <div
+                    key={res.specialty.id}
+                    className="p-4 sm:p-5 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-purple-500/40 transition-all flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="px-2.5 py-0.5 rounded-md bg-purple-950 text-purple-300 text-xs font-bold border border-purple-800/50">
+                          المركز {idx === 0 ? 'الثاني' : 'الثالث'} في الزمالات
+                        </span>
+                        <span className="text-xl font-black text-purple-400">{res.matchPercentage}%</span>
+                      </div>
+                      <h5 className="text-base sm:text-lg font-bold text-white mb-0.5">{res.specialty.name}</h5>
+                      <p className="text-xs text-slate-400 font-mono mb-2">{res.specialty.englishName}</p>
+                      <div className="flex items-center gap-2 text-xs text-purple-300 font-medium mb-2.5">
+                        <Clock className="w-3.5 h-3.5 shrink-0" />
+                        <span>المدة: {res.specialty.duration}</span>
+                        <span>•</span>
+                        <span>{res.specialty.category}</span>
+                      </div>
+                      <p className="text-xs text-slate-300 line-clamp-2 leading-relaxed mb-3">
+                        {res.specialty.lifestyleShift || res.specialty.pathway}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-3 border-t border-slate-800 gap-2">
+                      <button
+                        onClick={() => onOpenSpecialtyDetail(res.specialty)}
+                        className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold cursor-pointer transition-colors"
+                      >
+                        التفاصيل الكاملة
+                      </button>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => onToggleCompare(res.specialty)}
+                          className={`p-1.5 rounded-lg border text-xs cursor-pointer ${
+                            isCompared(res.specialty.id)
+                              ? 'bg-indigo-950 border-indigo-600 text-indigo-300'
+                              : 'bg-slate-800 border-slate-700 text-slate-400'
+                          }`}
+                          title="مقارنة"
+                        >
+                          <GitCompare className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => onToggleFavorite(res.specialty.id)}
+                          className={`p-1.5 rounded-lg border text-xs cursor-pointer ${
+                            isFavorite(res.specialty.id)
+                              ? 'bg-amber-950 border-amber-600 text-amber-300'
+                              : 'bg-slate-800 border-slate-700 text-slate-400'
+                          }`}
+                          title="حفظ"
+                        >
+                          <Bookmark className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════════════ */}
+        {/* SECTION 3: المسارات المشتركة والمدمجة (Integrated & Joint Tracks) */}
+        {/* ═══════════════════════════════════════════════════════════════ */}
+        {(activeSectionView === 'all' || activeSectionView === 'integrated') && topIntegrated && (
+          <div className="space-y-5 rounded-3xl p-5 sm:p-7 bg-gradient-to-b from-emerald-950/30 to-slate-900/60 border border-emerald-900/50 shadow-xl">
+            {/* Section Header Banner */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-emerald-900/40 pb-3">
+              <div className="flex items-center gap-2.5">
+                <span className="p-2 rounded-xl bg-emerald-600/20 text-emerald-400 border border-emerald-500/30">
+                  <Layers className="w-5 h-5" />
+                </span>
+                <div>
+                  <h3 className="text-lg sm:text-xl font-black text-white flex items-center gap-2">
+                    <span>قسم المسارات المشتركة والمدمجة</span>
+                    <span className="px-2.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-500/30">
+                      Integrated & Joint Tracks
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-300">
+                    برامج متصلة ومباشرة (مثل 0+6)، أو زمالات مشتركة مفتوحة لخريجي بوردات متعددة (مثل المعلوماتية الصحية، طب الألم، والطب الرياضي).
+                  </p>
+                </div>
+              </div>
+              <span className="text-xs font-bold text-emerald-300 bg-emerald-950/80 px-3 py-1 rounded-lg border border-emerald-800/60 w-fit">
+                {integratedResults.length} مساراً مشتركاً ومدمجاً
+              </span>
+            </div>
+
+            {/* Top 1 Integrated Match Hero Card */}
+            <motion.div
+              id="hero-top-integrated-card"
+              whileHover={{ y: -3, transition: { duration: 0.2 } }}
+              className="p-5 sm:p-7 rounded-2xl bg-gradient-to-br from-emerald-950/60 via-slate-900 to-slate-950 border-2 border-emerald-500/60 hover:border-emerald-400 shadow-2xl relative overflow-hidden group"
+            >
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+                <div className="lg:col-span-7 space-y-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="px-3.5 py-1 rounded-full bg-emerald-500 text-slate-950 text-xs font-black flex items-center gap-1.5 shadow-md">
+                      <Layers className="w-3.5 h-3.5" />
+                      <span>المركز الأول • أعلى توافق في المسارات المشتركة</span>
+                    </span>
+                    <span className="text-xs font-bold text-emerald-300 px-2.5 py-0.5 rounded-md bg-emerald-950/90 border border-emerald-800/50">
+                      {topIntegrated.specialty.category}
+                    </span>
+                  </div>
+
+                  <div>
+                    <h4 className="text-2xl sm:text-3xl font-black text-white mb-1">
+                      {topIntegrated.specialty.name}
+                    </h4>
+                    <p className="text-xs sm:text-sm font-semibold text-emerald-300 font-mono">
+                      {topIntegrated.specialty.englishName}
+                    </p>
+                  </div>
+
+                  {/* Pathway & Duration */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                    <div className="p-3 rounded-xl bg-emerald-950/70 border border-emerald-800/60 flex items-start gap-2.5">
+                      <GitFork className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="text-[11px] font-bold text-emerald-300">طبيعة المسار المشترك والمدمج</div>
+                        <div className="text-xs text-white font-medium">{topIntegrated.specialty.pathway}</div>
+                        {topIntegrated.specialty.parentSpecialty && (
+                          <div className="text-[10px] text-emerald-300 mt-0.5">الأهلية: {topIntegrated.specialty.parentSpecialty}</div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-emerald-950/70 border border-emerald-800/60 flex items-start gap-2.5">
+                      <Clock className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="text-[11px] font-bold text-emerald-300">مدة المسار والتنافسية</div>
+                        <div className="text-xs text-white font-medium">
+                          {topIntegrated.specialty.duration} • تنافسية {topIntegrated.specialty.competition}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Lifestyle snippet */}
+                  <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 text-xs text-slate-300 leading-relaxed">
+                    <span className="font-bold text-slate-200 block mb-1">نمط الحياة وطبيعة الممارسة:</span>
+                    {topIntegrated.specialty.lifestyle}
+                  </div>
+
+                  {/* Why it matches */}
+                  <div className="space-y-1.5 pt-1">
+                    <div className="text-xs font-bold text-slate-300">أبرز ركائز التوافق مع شخصيتك:</div>
+                    <ul className="space-y-1">
+                      {topIntegrated.strengths.slice(0, 3).map((str, idx) => (
+                        <li key={idx} className="text-xs text-slate-300 flex items-start gap-2">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                          <span>{str}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex flex-wrap items-center gap-2.5 pt-2">
+                    <motion.button
+                      id={`btn-top-integrated-detail-${topIntegrated.specialty.id}`}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => onOpenSpecialtyDetail(topIntegrated.specialty)}
+                      className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs sm:text-sm transition-colors flex items-center gap-2 cursor-pointer shadow-md"
+                    >
+                      <Eye className="w-4 h-4" />
+                      <span>تفاصيل المسار الكاملة</span>
+                    </motion.button>
+
+                    <motion.button
+                      id={`btn-top-integrated-compare-${topIntegrated.specialty.id}`}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => onToggleCompare(topIntegrated.specialty)}
+                      className={`px-3.5 py-2.5 rounded-xl border text-xs sm:text-sm font-semibold transition-colors flex items-center gap-2 cursor-pointer ${
+                        isCompared(topIntegrated.specialty.id)
+                          ? 'bg-indigo-950 border-indigo-500 text-indigo-200'
+                          : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200'
+                      }`}
+                    >
+                      <GitCompare className="w-4 h-4" />
+                      <span>{isCompared(topIntegrated.specialty.id) ? 'تمت المقارنة' : 'مقارنة'}</span>
+                    </motion.button>
+
+                    <motion.button
+                      id={`btn-top-integrated-fav-${topIntegrated.specialty.id}`}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => onToggleFavorite(topIntegrated.specialty.id)}
+                      className={`p-2.5 rounded-xl border transition-colors cursor-pointer ${
+                        isFavorite(topIntegrated.specialty.id)
+                          ? 'bg-amber-950 border-amber-500 text-amber-300'
+                          : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-400'
+                      }`}
+                      title="حفظ بالمفضلة"
+                    >
+                      <Bookmark className="w-4 h-4" />
+                    </motion.button>
+                  </div>
+                </div>
+
+                {/* Radar chart column */}
+                <div className="lg:col-span-5 flex flex-col items-center justify-center p-4 rounded-2xl bg-slate-950/70 border border-slate-800">
+                  <div className="text-center mb-1">
+                    <span className="text-3xl sm:text-4xl font-black text-emerald-400">
+                      {topIntegrated.matchPercentage}%
+                    </span>
+                    <div className="text-[11px] font-bold text-slate-400">نسبة التوافق مع المسار المدمج</div>
+                  </div>
+                  <RadarChart
+                    metrics={topIntegrated.specialty.metrics}
+                    comparisonMetrics={evaluation.userMetrics}
+                    label={topIntegrated.specialty.name}
+                    comparisonLabel="ملفك الشخصي"
+                    size={230}
+                  />
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Runner ups in integrated */}
+            {integratedResults.slice(1, 3).length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1">
+                {integratedResults.slice(1, 3).map((res, idx) => (
+                  <div
+                    key={res.specialty.id}
+                    className="p-4 sm:p-5 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-emerald-500/40 transition-all flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="px-2.5 py-0.5 rounded-md bg-emerald-950 text-emerald-300 text-xs font-bold border border-emerald-800/50">
+                          المركز {idx === 0 ? 'الثاني' : 'الثالث'} في المسارات المشتركة
+                        </span>
+                        <span className="text-xl font-black text-emerald-400">{res.matchPercentage}%</span>
+                      </div>
+                      <h5 className="text-base sm:text-lg font-bold text-white mb-0.5">{res.specialty.name}</h5>
+                      <p className="text-xs text-slate-400 font-mono mb-2">{res.specialty.englishName}</p>
+                      <div className="flex items-center gap-2 text-xs text-emerald-300 font-medium mb-2.5">
+                        <Clock className="w-3.5 h-3.5 shrink-0" />
+                        <span>المدة: {res.specialty.duration}</span>
+                        <span>•</span>
+                        <span>{res.specialty.category}</span>
+                      </div>
+                      <p className="text-xs text-slate-300 line-clamp-2 leading-relaxed mb-3">
+                        {res.specialty.pathway}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-3 border-t border-slate-800 gap-2">
+                      <button
+                        onClick={() => onOpenSpecialtyDetail(res.specialty)}
+                        className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold cursor-pointer transition-colors"
+                      >
+                        التفاصيل الكاملة
+                      </button>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => onToggleCompare(res.specialty)}
+                          className={`p-1.5 rounded-lg border text-xs cursor-pointer ${
+                            isCompared(res.specialty.id)
+                              ? 'bg-indigo-950 border-indigo-600 text-indigo-300'
+                              : 'bg-slate-800 border-slate-700 text-slate-400'
+                          }`}
+                          title="مقارنة"
+                        >
+                          <GitCompare className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => onToggleFavorite(res.specialty.id)}
+                          className={`p-1.5 rounded-lg border text-xs cursor-pointer ${
+                            isFavorite(res.specialty.id)
+                              ? 'bg-amber-950 border-amber-600 text-amber-300'
+                              : 'bg-slate-800 border-slate-700 text-slate-400'
+                          }`}
+                          title="حفظ"
+                        >
+                          <Bookmark className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Simulator Banner Callout */}
@@ -699,17 +1263,67 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({
           </div>
         </div>
 
+        {/* Track Type Filters */}
+        <div className="space-y-2.5">
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-300">
+            <GitFork className="w-3.5 h-3.5 text-cyan-400" />
+            <span>تصفية حسب نوع المسار السريري:</span>
+          </div>
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+            <button
+              onClick={() => setSelectedTrackFilter('all')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-colors cursor-pointer ${
+                selectedTrackFilter === 'all'
+                  ? 'bg-cyan-500 text-slate-950 shadow-sm'
+                  : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              كافة المسارات ({evaluation.results.length})
+            </button>
+            <button
+              onClick={() => setSelectedTrackFilter('residency')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-colors cursor-pointer ${
+                selectedTrackFilter === 'residency'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              برامج الإقامة المباشرة ({residencyResults.length})
+            </button>
+            <button
+              onClick={() => setSelectedTrackFilter('fellowship')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-colors cursor-pointer ${
+                selectedTrackFilter === 'fellowship'
+                  ? 'bg-purple-600 text-white shadow-sm'
+                  : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              برامج الزمالة الدقيقة ({fellowshipResults.length})
+            </button>
+            <button
+              onClick={() => setSelectedTrackFilter('integrated')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-colors cursor-pointer ${
+                selectedTrackFilter === 'integrated'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              المسارات المشتركة والمدمجة ({integratedResults.length})
+            </button>
+          </div>
+        </div>
+
         {/* Categories Filter Pills */}
         <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-thin">
           <button
             onClick={() => setSelectedCategory('all')}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
               selectedCategory === 'all'
-                ? 'bg-cyan-500 text-slate-950'
-                : 'bg-slate-900 text-slate-300 hover:bg-slate-800'
+                ? 'bg-slate-200 text-slate-950 font-bold'
+                : 'bg-slate-900/90 text-slate-400 hover:bg-slate-800 hover:text-slate-200'
             }`}
           >
-            جميع التصنيفات ({evaluation.results.length})
+            كافة الأقسام الطبية
           </button>
           {categories.map((cat) => (
             <button
@@ -717,8 +1331,8 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({
               onClick={() => setSelectedCategory(cat)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
                 selectedCategory === cat
-                  ? 'bg-cyan-500 text-slate-950'
-                  : 'bg-slate-900 text-slate-300 hover:bg-slate-800'
+                  ? 'bg-slate-200 text-slate-950 font-bold'
+                  : 'bg-slate-900/90 text-slate-400 hover:bg-slate-800 hover:text-slate-200'
               }`}
             >
               {cat}
@@ -728,104 +1342,145 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({
 
         {/* Results List */}
         <div className="space-y-3">
-          {filteredResults.map((item, index) => {
-            const pct = item.matchPercentage;
-            const barColor =
-              pct >= 85
-                ? 'from-emerald-400 to-teal-500'
-                : pct >= 70
-                ? 'from-cyan-400 to-blue-500'
-                : pct >= 55
-                ? 'from-amber-400 to-yellow-500'
-                : 'from-slate-500 to-slate-600';
+          {filteredResults.length === 0 ? (
+            <div className="text-center py-12 p-6 rounded-2xl bg-slate-900/40 border border-slate-800 text-slate-400">
+              <p className="font-bold text-slate-300 mb-1">لا توجد تخصصات مطابقة للبحث المحدد</p>
+              <p className="text-xs">جرب تغيير كلمات البحث أو إعادة ضبط تصفية المسارات والتصنيفات.</p>
+            </div>
+          ) : (
+            filteredResults.map((item, index) => {
+              const pct = item.matchPercentage;
+              const barColor =
+                pct >= 85
+                  ? 'from-emerald-400 to-teal-500'
+                  : pct >= 70
+                  ? 'from-cyan-400 to-blue-500'
+                  : pct >= 55
+                  ? 'from-amber-400 to-yellow-500'
+                  : 'from-slate-500 to-slate-600';
 
-            return (
-              <motion.div
-                key={item.specialty.id}
-                id={`ranked-item-${item.specialty.id}`}
-                whileHover={{ scale: 1.008, x: -3, transition: { duration: 0.15 } }}
-                className="p-4 sm:p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 hover:bg-slate-800/60 hover:border-cyan-500/40 hover:shadow-lg hover:shadow-slate-950/40 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 group"
-              >
-                {/* Left side: Rank & Title */}
-                <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
-                  <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-slate-800 group-hover:bg-cyan-500/20 group-hover:text-cyan-300 text-slate-400 text-xs font-black flex items-center justify-center shrink-0 transition-colors">
-                    #{index + 1}
-                  </span>
+              const trackBadge =
+                item.specialty.trackType === 'residency'
+                  ? { label: 'إقامة مباشرة', bg: 'bg-blue-950/80 text-blue-300 border-blue-800/60' }
+                  : item.specialty.trackType === 'fellowship'
+                  ? { label: 'زمالة دقيقة', bg: 'bg-purple-950/80 text-purple-300 border-purple-800/60' }
+                  : { label: 'مسار مشترك', bg: 'bg-emerald-950/80 text-emerald-300 border-emerald-800/60' };
 
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-bold text-white text-sm sm:text-base group-hover:text-cyan-200 transition-colors">
-                        {item.specialty.name}
-                      </span>
-                      <span className="text-xs text-slate-400 font-mono">
-                        ({item.specialty.englishName})
-                      </span>
-                      <span className="text-[10px] sm:text-[11px] px-2 py-0.5 rounded-md bg-slate-800/90 text-slate-300 border border-slate-700/50">
-                        {item.specialty.category}
-                      </span>
-                    </div>
+              return (
+                <motion.div
+                  key={item.specialty.id}
+                  id={`ranked-item-${item.specialty.id}`}
+                  whileHover={{ scale: 1.006, x: -2, transition: { duration: 0.15 } }}
+                  className="p-4 sm:p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 hover:bg-slate-800/60 hover:border-cyan-500/40 hover:shadow-lg hover:shadow-slate-950/40 transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-4 group"
+                >
+                  {/* Left side: Rank, Title, Pathway & Specs */}
+                  <div className="flex items-start gap-3.5 min-w-0 flex-1">
+                    <span className="w-8 h-8 rounded-xl bg-slate-800 group-hover:bg-cyan-500/20 group-hover:text-cyan-300 text-slate-400 text-xs font-black flex items-center justify-center shrink-0 transition-colors mt-0.5">
+                      #{index + 1}
+                    </span>
 
-                    {/* Match percentage bar */}
-                    <div className="flex items-center gap-3 mt-2 max-w-md">
-                      <div className="w-full h-2 sm:h-2.5 rounded-full bg-slate-800 overflow-hidden">
-                        <div
-                          className={`h-full rounded-full bg-gradient-to-l ${barColor}`}
-                          style={{ width: `${pct}%` }}
-                        />
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-white text-base group-hover:text-cyan-200 transition-colors">
+                          {item.specialty.name}
+                        </span>
+                        <span className="text-xs text-slate-400 font-mono">
+                          ({item.specialty.englishName})
+                        </span>
+                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md border ${trackBadge.bg}`}>
+                          {trackBadge.label}
+                        </span>
+                        <span className="text-[10px] sm:text-[11px] px-2 py-0.5 rounded-md bg-slate-800/90 text-slate-300 border border-slate-700/50">
+                          {item.specialty.category}
+                        </span>
                       </div>
-                      <span className="text-xs font-black text-cyan-400 w-10 text-left shrink-0">
-                        {pct}%
-                      </span>
+
+                      {/* Pathway and duration details */}
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-300">
+                        <div className="flex items-center gap-1 text-cyan-300/90 font-medium">
+                          <GitFork className="w-3.5 h-3.5 shrink-0" />
+                          <span>المسار: {item.specialty.pathway}</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-slate-300">
+                          <Clock className="w-3.5 h-3.5 shrink-0 text-slate-400" />
+                          <span>المدة: {item.specialty.duration}</span>
+                        </div>
+                        <div className="text-slate-400">
+                          <span>التنافسية: {item.specialty.competition}</span>
+                        </div>
+                      </div>
+
+                      {/* Lifestyle Shift highlight if fellowship */}
+                      {item.specialty.lifestyleShift && (
+                        <div className="text-[11px] text-purple-300/90 bg-purple-950/40 border border-purple-800/40 rounded-lg px-2.5 py-1 flex items-center gap-1.5">
+                          <TrendingUp className="w-3 h-3 text-purple-400 shrink-0" />
+                          <span className="font-semibold text-purple-200">تحول نمط الحياة:</span>
+                          <span>{item.specialty.lifestyleShift}</span>
+                        </div>
+                      )}
+
+                      {/* Match percentage bar */}
+                      <div className="flex items-center gap-3 max-w-md pt-0.5">
+                        <div className="w-full h-2 sm:h-2.5 rounded-full bg-slate-800 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full bg-gradient-to-l ${barColor}`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <span className="text-xs font-black text-cyan-400 w-12 text-left shrink-0">
+                          {pct}% توافق
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Right side: Actions */}
-                <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-                  <motion.button
-                    id={`btn-ranked-detail-${item.specialty.id}`}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => onOpenSpecialtyDetail(item.specialty)}
-                    className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer min-h-[38px]"
-                  >
-                    <Eye className="w-3.5 h-3.5" />
-                    <span>التفاصيل</span>
-                  </motion.button>
+                  {/* Right side: Actions */}
+                  <div className="flex items-center gap-2 shrink-0 self-end lg:self-center">
+                    <motion.button
+                      id={`btn-ranked-detail-${item.specialty.id}`}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => onOpenSpecialtyDetail(item.specialty)}
+                      className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer min-h-[38px]"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>التفاصيل</span>
+                    </motion.button>
 
-                  <motion.button
-                    id={`btn-ranked-compare-${item.specialty.id}`}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => onToggleCompare(item.specialty)}
-                    className={`p-2 rounded-xl border text-xs cursor-pointer min-h-[38px] min-w-[38px] flex items-center justify-center ${
-                      isCompared(item.specialty.id)
-                        ? 'bg-indigo-950 border-indigo-600 text-indigo-300'
-                        : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
-                    }`}
-                    title="مقارنة"
-                  >
-                    <GitCompare className="w-3.5 h-3.5" />
-                  </motion.button>
+                    <motion.button
+                      id={`btn-ranked-compare-${item.specialty.id}`}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => onToggleCompare(item.specialty)}
+                      className={`p-2 rounded-xl border text-xs cursor-pointer min-h-[38px] min-w-[38px] flex items-center justify-center ${
+                        isCompared(item.specialty.id)
+                          ? 'bg-indigo-950 border-indigo-600 text-indigo-300'
+                          : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
+                      }`}
+                      title="مقارنة"
+                    >
+                      <GitCompare className="w-3.5 h-3.5" />
+                    </motion.button>
 
-                  <motion.button
-                    id={`btn-ranked-fav-${item.specialty.id}`}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => onToggleFavorite(item.specialty.id)}
-                    className={`p-2 rounded-xl border text-xs cursor-pointer min-h-[38px] min-w-[38px] flex items-center justify-center ${
-                      isFavorite(item.specialty.id)
-                        ? 'bg-amber-950 border-amber-600 text-amber-300'
-                        : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
-                    }`}
-                    title="حفظ"
-                  >
-                    <Bookmark className="w-3.5 h-3.5" />
-                  </motion.button>
-                </div>
-              </motion.div>
-            );
-          })}
+                    <motion.button
+                      id={`btn-ranked-fav-${item.specialty.id}`}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => onToggleFavorite(item.specialty.id)}
+                      className={`p-2 rounded-xl border text-xs cursor-pointer min-h-[38px] min-w-[38px] flex items-center justify-center ${
+                        isFavorite(item.specialty.id)
+                          ? 'bg-amber-950 border-amber-600 text-amber-300'
+                          : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
+                      }`}
+                      title="حفظ"
+                    >
+                      <Bookmark className="w-3.5 h-3.5" />
+                    </motion.button>
+                  </div>
+                </motion.div>
+              );
+            })
+          )}
         </div>
       </div>
     </div>
