@@ -1,0 +1,6 @@
+{
+  "name": "Guide Med",
+  "description": "منصة Guide Med الذكية لاختيار التخصص الطبي للأطباء وطلاب الطب عبر نماذج التقييم السريري، أنماط التعلم الإكلينيكي، ومحاكي المعايير",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
